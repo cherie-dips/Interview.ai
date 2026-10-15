@@ -17,7 +17,7 @@ os.environ.pop("ADMIN_EMAILS", None)
 os.environ.pop("ALERT_WEBHOOK_URL", None)
 # Tests use Sarvam (faked), whatever language model .env picks.
 os.environ.update(LLM_PROVIDER="sarvam", LLM_API_BASE="", LLM_API_KEY="", LLM_MODEL="", ANSWER_THINKING="true")
-os.environ.pop("LLM_THINKING_OFF", None)
+os.environ["LLM_THINKING_OFF"] = ""  # the default (empty, so .env can't fill it in)
 # Sign-in goes to the fake Neon Auth; originals are only stored by tests that ask for file_storage.
 os.environ["NEON_AUTH_BASE_URL"] = "https://auth.test/neondb/auth"
 # The live site, whatever .env says (the sign-in Origin and email links come from it).

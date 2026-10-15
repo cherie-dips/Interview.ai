@@ -103,7 +103,8 @@ Gujarati, Kannada, Malayalam, Marathi, Odia, Punjabi, Tamil, Telugu).
                                                                                 ▼
  Study AI server  (server/, on Hugging Face Spaces)
  ├── Neon             Postgres + pgvector, Neon Auth (sign-in), file storage
- ├── Sarvam AI        reads PDFs and photos, writes answers
+ ├── Sarvam AI        reads PDFs and photos
+ ├── Gemini           writes answers and study material
  └── Supabase         the course PDFs, read once into the shared course library
 ```
 
@@ -191,8 +192,8 @@ Reading a long scanned PDF can take a minute or two, which is why this happens i
  get a small boost.
         │
         ▼
- Send the question, the earlier messages and those passages to Sarvam AI
- (sarvam-105b) with these rules:
+ Send the question, the earlier messages and those passages to the language model
+ (Gemini 3.5 Flash-Lite) with these rules:
    • Use the notes first and refer to them.
    • If the notes don't fully answer it, add standard textbook knowledge for the
      same subject and label it "📖 Beyond notes".
@@ -218,7 +219,7 @@ so most answers need just one search.
  Collect the text: the open file, plus short parts of other files in the same course folder
         │
         ▼
- Send it to Sarvam AI (sarvam-105b, with its long reasoning turned off, so it takes a second or two):
+ Send it to the language model (Gemini 3.5 Flash-Lite, with its reasoning turned down, so it takes a few seconds):
    • Flashcards and quizzes: about 70% straight from the notes, about 30% on closely
      related topics from the same subject (those are labelled "📖 Beyond notes")
    • Quizzes: 4 options each, one-line explanation, answer order shuffled
@@ -290,7 +291,7 @@ one server.
 | | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Re-checks how well each passage answers the question (also multilingual). |
 | **Database** | [Neon](https://neon.com) Postgres with the pgvector extension | One database for everything: account details, folders, file text, decks, usage, and the passages with their fingerprints and keyword index. pgvector is the Postgres add-on that stores and searches fingerprints. |
 | **File storage** | Neon Object Storage (S3-compatible, so it works like Amazon S3) | Keeps students' uploaded PDFs and photos. The course PDFs stay in Supabase. |
-| **Writing answers** | Sarvam AI `sarvam-105b`, through LlamaIndex | Writes answers, rewrites follow-up questions, and makes flashcards, quizzes and summaries. Another provider can be switched in with a setting. |
+| **Writing answers** | Google Gemini `gemini-3.5-flash-lite` (through its OpenAI-style API), via LlamaIndex | Writes answers, rewrites follow-up questions, and makes flashcards, quizzes and summaries. Sarvam AI `sarvam-105b` is the server's default when no other model is set; another provider can be switched in with settings. |
 | **Sign-in** | Neon Auth | Accounts and passwords (stored scrambled), password-reset and email-confirmation emails. The server talks to it for the browser, so sign-in works in every browser. |
 | **Hosting** | GitHub Pages | Hosts the site, with Study AI built in. |
 | | Hugging Face Spaces (Docker) | Hosts the Study AI server. |
@@ -314,8 +315,10 @@ one server.
 - **Postgres** for storage: one ordinary database holds everything. Keyword search, meaning search
   and filters run in one place, and changes are all-or-nothing (no half-saved files). Each search
   covers one student's notes or one course, which Postgres scans exactly in milliseconds.
-- **Sarvam AI** as the language model: it is built for Indian languages (answers in 10 of them), the
-  same key already reads PDFs and photos, and costs are in rupees. To compare another model, set
+- **Gemini 3.5 Flash-Lite** as the language model: of the free models tried (Gemini, and NVIDIA's
+  gpt-oss, Nemotron and DeepSeek), it was the fastest and made flashcards and quizzes reliably, and it
+  answers well in Indian languages. Sarvam AI still reads PDFs and photos, and remains the default model
+  when no other is set. To compare another model, set
   `LLM_PROVIDER=openai_like` (see [the server's settings](server/README.md#settings)) and run the
   answer-quality test before and after.
 

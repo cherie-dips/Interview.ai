@@ -51,7 +51,11 @@ export default function PrivacyNote({ onClose }) {
               emails. Your notes, uploaded files, text and study data are stored with Neon (a hosted database
               and file storage) on servers in Singapore.
             </li>
-            <li>To read PDFs and photos and to write answers, flashcards and quizzes, your note text and questions are sent to Sarvam AI.</li>
+            <li>To read the text of PDFs and photos, your uploaded files are sent to Sarvam AI.</li>
+            <li>
+              To write answers, flashcards, quizzes and summaries, your questions and the parts of your notes
+              they use are sent to Google's Gemini. On its free tier, Google may use them to improve its products.
+            </li>
             <li>The {APP_NAME} server runs on Hugging Face hosting.</li>
             <li>
               Ask AI in the Notes tab uses the same account. Questions asked there, and the course notes

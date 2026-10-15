@@ -141,13 +141,20 @@ Space itself (free). The defaults are multilingual; change them only together wi
 - `LLM_PROVIDER`: `sarvam` (default) or `openai_like` to try another language model with an
   OpenAI-style chat API; then also set `LLM_API_BASE`, `LLM_API_KEY` and `LLM_MODEL`. Sarvam Vision
   still reads PDFs and photos. Run the [answer-quality test](#answer-quality-test) before and after switching.
-  Example, DeepSeek on NVIDIA: `LLM_API_BASE=https://integrate.api.nvidia.com/v1`,
-  `LLM_MODEL=deepseek-ai/deepseek-v4.1-flash`, `LLM_API_KEY` = your `nvapi-...` key (as a secret).
-  NVIDIA's free API is a trial for testing (about 40 requests a minute, not for a live app); the same
-  model on a paid service (DeepInfra, Together, OpenRouter) needs only these three settings changed.
+  **The live Space uses Gemini:** `LLM_PROVIDER=openai_like`,
+  `LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-3.5-flash-lite`,
+  `LLM_THINKING_OFF={"reasoning_effort": "low"}`, and `LLM_API_KEY` = a Google AI Studio key (as a secret).
+  It was the fastest of the free models tried, and makes flashcards and quizzes reliably. On Gemini's free
+  tier Google may use what is sent (including passages of notes) to improve its products, and there are
+  daily limits; turning on billing for the key removes both.
+  Another option, `gpt-oss-20b` on NVIDIA's free trial API: `LLM_API_BASE=https://integrate.api.nvidia.com/v1`,
+  `LLM_MODEL=openai/gpt-oss-20b`, `LLM_THINKING_OFF={"reasoning_effort": "low"}`, `LLM_API_KEY` = your
+  `nvapi-...` key. NVIDIA's trial is for testing (about 40 requests a minute), and many of its models
+  are often unavailable or very slow.
 - `LLM_THINKING_OFF` (with `openai_like`): the request fields that switch the model's thinking off,
-  as JSON. Default `{"chat_template_kwargs": {"thinking": false}}` (NVIDIA, DeepInfra, Together);
-  for OpenRouter use `{"reasoning": {"enabled": false}}`.
+  as JSON. Default `{"chat_template_kwargs": {"thinking": false}}` (DeepSeek and Qwen on NVIDIA, DeepInfra,
+  Together); `{"reasoning_effort": "low"}` for Gemini and gpt-oss; `{"reasoning": {"enabled": false}}`
+  for OpenRouter.
 - `ANSWER_THINKING` (default `true`): `false` makes answers start straight away, without the model
   thinking first. Follow-up rewriting, flashcards, quizzes and summaries never use thinking.
 

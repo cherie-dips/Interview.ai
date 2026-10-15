@@ -7,7 +7,7 @@ The three AI models the pipeline uses, in one place (all through LlamaIndex):
   well the passage answers it, from 0 to 1. Runs on our server, free.
 - Language model: writes answers, flashcards, quizzes and summaries. Sarvam AI by default; any
   service with an OpenAI-style chat API can be used instead (LLM_PROVIDER=openai_like), e.g.
-  DeepSeek on NVIDIA, DeepInfra or OpenRouter.
+  Gemini (what the live Space uses), NVIDIA, DeepInfra or OpenRouter.
 
 To try another model, change the setting (see settings.py) and run the answer-quality test before
 and after (scripts/answer_quality.py).

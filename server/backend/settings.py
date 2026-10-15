@@ -72,7 +72,8 @@ LLM_API_KEY = (os.getenv("LLM_API_KEY") or "").strip()
 LLM_MODEL = (os.getenv("LLM_MODEL") or "").strip()
 # With openai_like: extra request fields that switch the model's thinking off. Quick jobs (rewriting
 # follow-up questions, flashcards, quizzes, summaries) always run without thinking. The default suits
-# DeepSeek and Qwen on NVIDIA, DeepInfra and Together; OpenRouter uses {"reasoning": {"enabled": false}}.
+# DeepSeek and Qwen on NVIDIA, DeepInfra and Together; Gemini and gpt-oss use {"reasoning_effort": "low"};
+# OpenRouter uses {"reasoning": {"enabled": false}}.
 LLM_THINKING_OFF = _env_json("LLM_THINKING_OFF", {"chat_template_kwargs": {"thinking": False}})
 # Whether the model thinks before answering questions: first words come later, hard questions can
 # get better answers. Off = answers start straight away.
@@ -176,7 +177,7 @@ MIN_SCORE_LIBRARY_SUBJECT = 0.15  # the other PDFs of that course
 # ---------- Running a pilot ----------
 APP_TIMEZONE = _env_str("APP_TIMEZONE", "Asia/Kolkata")  # "today", streaks and reminder times use this
 STARTER_NOTES = _env_bool("STARTER_NOTES", True)          # new accounts get a "Getting started" folder
-PRIVACY_VERSION = "2026-10-14"                            # bump when the privacy note changes
+PRIVACY_VERSION = "2026-10-15"                            # bump when the privacy note changes
 ADMIN_EMAILS = {e.strip().lower() for e in (os.getenv("ADMIN_EMAILS") or "").split(",") if e.strip()}
 ALERT_WEBHOOK_URL = (os.getenv("ALERT_WEBHOOK_URL") or "").strip()  # Slack/Discord-style webhook for errors
 
