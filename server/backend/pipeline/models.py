@@ -37,12 +37,16 @@ def embedder():
     if _embedder is None:
         with _lock:
             if _embedder is None:
+                from huggingface_hub.constants import HF_HUB_CACHE
                 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
                 # E5 models are trained with these prefixes; other models get none.
                 e5 = "e5" in settings.EMBED_MODEL.lower()
                 _embedder = HuggingFaceEmbedding(
                     model_name=settings.EMBED_MODEL,
+                    # Hugging Face's usual cache (LlamaIndex would use its own folder), where the Dockerfile
+                    # downloads the model at build time: the Space runs offline.
+                    cache_folder=HF_HUB_CACHE,
                     query_instruction="query: " if e5 else None,
                     text_instruction="passage: " if e5 else None,
                     normalize=True,
