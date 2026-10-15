@@ -1,0 +1,44 @@
+services:
+  # Postgres with the pgvector extension, used by the backend below (whatever DATABASE_URL .env has).
+  # Port 5433 on your computer, so it doesn't clash with a Postgres you may already run on 5432.
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: notescanner-db
+    environment:
+      - POSTGRES_USER=notescanner
+      - POSTGRES_PASSWORD=notescanner
+      - POSTGRES_DB=notescanner
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notescanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    container_name: notescanner-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://notescanner:notescanner@db:5432/notescanner
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    # One worker: upload jobs, the chat-upload cache, request limits and per-user locks live in process memory.
+    command: ["uvicorn", "backend.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  db_data:

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      # Postgres with pgvector, like the hosted database (locally, the tests start their own with pgserver).
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: studyai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tesseract
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            server/requirements.txt
+            server/requirements-dev.txt
+
+      - name: Cache the search models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-multilingual-e5-small-mmarco-mMiniLMv2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # CPU-only torch first: the default wheel bundles GPU libraries the tests don't need.
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        env:
+          SARVAM_API_KEY: ""
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/studyai_test
+        run: python -m pytest -q tests
+
+  study-ai:
+    name: Study AI lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: study-ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: study-ai/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Build
+        run: npm run build

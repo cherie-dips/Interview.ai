@@ -1,0 +1,123 @@
+import json
+import time
+
+import pytest
+
+from backend import study_store
+from backend.pipeline import generation
+
+
+@pytest.fixture
+def opened_file(client, user, upload):
+    upload(user["headers"], "newton.md", b"Newton's second law: force equals mass times acceleration. " * 10)
+    return "newton.md"
+
+
+def test_ai_failure_gives_error_not_fake_items(client, user, opened_file, monkeypatch):
+    monkeypatch.setattr(generation, "chat", lambda *a, **k: ("this is not json", None))
+    r = client.post("/study/generate", data={"task": "mcq", "count": "3", "opened_file_path": opened_file}, headers=user["headers"])
+    assert r.status_code == 503 and "items" not in r.json() and "try again" in r.json()["error"]
+    monkeypatch.setattr(generation, "chat", lambda *a, **k: (None, "upstream down"))
+    r = client.post("/study/summary", data={"opened_file_path": opened_file}, headers=user["headers"])
+    assert r.status_code == 503 and "summary" not in r.json()
+
+
+def test_mcqs_have_explanations_and_shuffled_answers(client, user, opened_file, monkeypatch):
+    item = {"question": "F = ?", "options": ["ma", "mv", "m/a", "a/m"], "answer_index": 0, "explanation": "Newton's second law.", "source": "notes"}
+    monkeypatch.setattr(generation, "chat", lambda *a, **k: (json.dumps([item] * 20), None))
+    r = client.post("/study/generate", data={"task": "mcq", "count": "20", "opened_file_path": opened_file}, headers=user["headers"])
+    items = r.json()["items"]
+    assert len(items) == 20
+    assert all(it["options"][it["answer_index"]] == "ma" and it["explanation"] for it in items)
+    assert len({it["answer_index"] for it in items}) > 1  # the right answer isn't always in the same place
+
+
+def test_summary_route(client, user, opened_file, monkeypatch):
+    monkeypatch.setattr(generation, "chat", lambda *a, **k: ("A summary of Newton's laws " * 5, None))
+    r = client.post("/study/summary", data={"opened_file_path": opened_file}, headers=user["headers"])
+    assert r.status_code == 200 and r.json()["summary"].startswith("A summary")
+
+
+def test_deck_lifecycle(client, user):
+    h = user["headers"]
+    cards = [{"front": f"Q{i}", "back": f"A{i}", "source": "notes"} for i in range(3)]
+    r = client.post("/study/decks", data={"name": "Physics week 1", "source_path": "newton.md", "cards": json.dumps(cards)}, headers=h)
+    assert r.status_code == 201, r.text
+    deck_id = r.json()["deck_id"]
+
+    decks = client.get("/study/decks", headers=h).json()["decks"]
+    assert decks[0]["card_count"] == 3 and decks[0]["due_count"] == 3
+
+    due = client.get(f"/study/decks/{deck_id}/cards", params={"due_only": "true"}, headers=h).json()["cards"]
+    assert len(due) == 3
+    r = client.post(f"/study/cards/{due[0]['card_id']}/review", data={"grade": "good"}, headers=h)
+    assert r.status_code == 200 and r.json()["interval_days"] == 1.0
+    r = client.post(f"/study/cards/{due[1]['card_id']}/review", data={"grade": "again"}, headers=h)
+    assert r.json()["due_at"] - time.time() < 700
+    assert client.post(f"/study/cards/{due[2]['card_id']}/review", data={"grade": "perfect"}, headers=h).status_code == 400
+    assert client.get("/study/decks", headers=h).json()["decks"][0]["due_count"] == 1
+
+    r = client.get(f"/study/decks/{deck_id}/export", headers=h)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    assert 'filename="Physics week 1.csv"' in r.headers["content-disposition"]
+    assert r.text.splitlines()[0] in {"Q0,A0", "Q1,A1", "Q2,A2"}
+
+    assert client.delete(f"/study/decks/{deck_id}", headers=h).status_code == 200
+    assert client.get("/study/decks", headers=h).json()["decks"] == []
+    assert client.get(f"/study/decks/{deck_id}/cards", headers=h).status_code == 404
+
+
+def test_decks_are_private(client, signup):
+    a, b = signup(), signup()
+    deck = client.post("/study/decks", data={"name": "mine", "cards": json.dumps([{"front": "q", "back": "a"}])}, headers=a["headers"]).json()
+    assert client.get(f"/study/decks/{deck['deck_id']}/cards", headers=b["headers"]).status_code == 404
+    card = client.get(f"/study/decks/{deck['deck_id']}/cards", headers=a["headers"]).json()["cards"][0]
+    assert client.post(f"/study/cards/{card['card_id']}/review", data={"grade": "good"}, headers=b["headers"]).status_code == 404
+
+
+def test_schedule_grows_intervals():
+    meta = {"ease": 2.5, "interval_days": 0, "reps": 0, "lapses": 0}
+    intervals = []
+    for _ in range(4):
+        meta = study_store.schedule(meta, "good", 0)
+        intervals.append(meta["interval_days"])
+    assert intervals[0] == 1.0 and intervals[1] == 3.0 and intervals[2] > 3.0 and intervals[3] > intervals[2]
+    lapsed = study_store.schedule(meta, "again", 0)
+    assert lapsed["reps"] == 0 and lapsed["lapses"] == 1 and lapsed["ease"] < meta["ease"]
+
+
+def test_study_tools_use_the_current_model_without_long_reasoning(fake_sarvam, monkeypatch):
+    sent = fake_sarvam(lambda body: (200, "A short summary of the notes on Newton's laws."))
+    monkeypatch.setenv("SARVAM_MODEL_STUDY", "")  # blank settings fall back to the default
+    text, err = generation.summary("Newton's laws of motion: inertia, F = ma, action and reaction. " * 5)
+    assert err is None and text
+    assert sent[0]["model"] == "sarvam-105b"
+    assert "reasoning_effort" in sent[0] and sent[0]["reasoning_effort"] is None  # null = reasoning off
+
+
+def test_retired_model_setting_falls_back_to_the_default(fake_sarvam, monkeypatch):
+    def reply(body):
+        if body["model"] == "sarvam-30b":
+            return 400, {"error": {"message": "Model 'sarvam-30b' has been deprecated."}}
+        return 200, "Summary of the notes about forces and motion."
+
+    sent = fake_sarvam(reply)
+    monkeypatch.setenv("SARVAM_MODEL_STUDY", "sarvam-30b")
+    text, err = generation.summary("Newton's laws of motion: inertia, F = ma, action and reaction. " * 5)
+    assert err is None and text and [b["model"] for b in sent] == ["sarvam-30b", "sarvam-105b"]
+
+
+def test_latex_with_single_backslashes_is_read_correctly():
+    parse = generation._parse_json_loose
+    assert parse(r'[{"front": "$x \cdot y$, $\alpha$", "back": "b"}]')[0]["front"] == r"$x \cdot y$, $\alpha$"
+    # \f, \t, \n, \b would otherwise turn into control characters
+    assert parse(r'[{"front": "$\frac{a}{b}$, $\theta \neq \beta$", "back": "b"}]')[0]["front"] == r"$\frac{a}{b}$, $\theta \neq \beta$"
+    assert parse('[{"front": "one\\nTwo", "back": "a\\\\frac{1}{2}"}]')[0] == {"front": "one\nTwo", "back": r"a\frac{1}{2}"}
+
+
+def test_flashcards_survive_model_latex(client, user, opened_file, monkeypatch):
+    reply = r'```json' + "\n" + r'[{"front": "Write Newton’s second law", "back": "$\vec{F} = m \cdot \vec{a}$", "source": "notes"}]' + "\n```"
+    monkeypatch.setattr(generation, "chat", lambda *a, **k: (reply, None))
+    r = client.post("/study/generate", data={"task": "flashcards", "count": "1", "opened_file_path": opened_file}, headers=user["headers"])
+    assert r.status_code == 200, r.text
+    assert r.json()["items"][0]["back"] == r"$\vec{F} = m \cdot \vec{a}$"

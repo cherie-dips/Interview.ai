@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==9.1.1
+# A throwaway Postgres with pgvector for the tests (no Docker needed)
+pgserver==0.1.4

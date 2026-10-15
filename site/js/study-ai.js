@@ -1,23 +1,21 @@
 // ====== STUDY AI + ASK AI ======
-// Study AI is the NoteScanner app (github.com/cherie-dips/NoteScanner), shown in the "Study AI" tab
-// with ?embed=sde so it takes this site's look. Ask AI is a panel in the Notes tab that asks
-// NoteScanner's server about the course PDF that is open: the server indexes these PDFs once (its
-// shared course library) and answers from them, citing where in the PDF each answer came from.
+// Study AI is the "Study AI" tab: its own page, study-ai/ (built from the repo's study-ai/ folder),
+// shown in a frame. Ask AI is a panel in the Notes tab that asks the Study AI server about the course
+// PDF that is open: the server indexes these PDFs once (its shared course library) and answers from
+// them, citing where in the PDF each answer came from.
 //
-// On GitHub Pages both sites live on cherie-dips.github.io, so they share one sign-in: NoteScanner
-// keeps its session in localStorage under notescanner_session_id, and this file reads it.
+// The frame is on this site, so the two share one sign-in: Study AI keeps its session in localStorage
+// under notescanner_session_id, and this file reads it. This page holds the profile menu and asks
+// Study AI (by postMessage) to open its windows.
 
-// NoteScanner's server. To test against one on your computer, set localStorage.studyai_api
-// (e.g. 'http://localhost:8000') and reload: the live server only accepts this site's address.
+// The Study AI server (keep in step with study-ai/src/config.js). On your computer it's
+// http://localhost:8000; set localStorage.studyai_api (e.g. to the live server) and reload to use another.
 const STUDY_AI_API = (function () {
   try { const o = localStorage.getItem('studyai_api'); if (o) return o.replace(/\/+$/, ''); } catch (e) {}
+  if (['localhost', '127.0.0.1'].indexOf(location.hostname) >= 0) return 'http://localhost:8000';
   return 'https://diptidhawade-notescanner.hf.space';
 })();
-// The NoteScanner site next to this one (same origin, so the sign-in is shared). Served from
-// anywhere else, fall back to the live site - it then keeps its own sign-in.
-const STUDY_AI_APP = /^\/SDE-Prep\//i.test(location.pathname)
-  ? new URL('../NoteScanner/', location.href).href
-  : 'https://cherie-dips.github.io/NoteScanner/';
+const STUDY_AI_APP = new URL('study-ai/', location.href).href;
 const NS_SESSION_KEY = 'notescanner_session_id';
 const NS_NAME_KEY = 'notescanner_user_name';
 const NS_USER_KEY = 'notescanner_user_id';
@@ -33,7 +31,7 @@ function aiSession() {
   try { return localStorage.getItem(NS_SESSION_KEY) || ''; } catch (e) { return ''; }
 }
 function aiForgetSession() {
-  // The server rejected the session (expired, or signed out elsewhere) - same as NoteScanner does.
+  // The server rejected the session (expired, or signed out elsewhere) - same as Study AI does.
   try { [NS_SESSION_KEY, NS_NAME_KEY, NS_USER_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) {}
 }
 
@@ -176,6 +174,20 @@ let studyPendingAuth = null;   // 'login' | 'register' to open once the frame is
 let studyPendingCommand = null; // e.g. {type: 'studyai:open', what: 'settings'} from the header menu
 let studyReturnTo = null;      // where to go back to after signing in from Ask AI
 
+// The password-reset email links to this page (?reset=1&token=…, or &error=… once the link has
+// expired). Pass those to Study AI, which shows the matching box, and keep them out of this address.
+let studyLinkParams = (function () {
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reset') !== '1') return null;
+    const link = new URLSearchParams();
+    ['reset', 'token', 'error'].forEach(k => { if (params.has(k)) link.set(k, params.get(k)); params.delete(k); });
+    const rest = params.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + '#study');
+    return link;
+  } catch (e) { return null; }
+})();
+
 function studyAiOrigin() {
   try { return new URL(STUDY_AI_APP).origin; } catch (e) { return location.origin; }
 }
@@ -185,8 +197,9 @@ function studyAiView() {
   if (!host) return;
   if (!studyFrame) {
     const url = new URL(STUDY_AI_APP);
-    url.searchParams.set('embed', 'sde');
-    if (studyPendingAuth && !aiSession()) url.searchParams.set('auth', studyPendingAuth);
+    if (studyLinkParams) studyLinkParams.forEach((v, k) => url.searchParams.set(k, v));
+    else if (studyPendingAuth && !aiSession()) url.searchParams.set('auth', studyPendingAuth);
+    studyLinkParams = null;
     studyPendingAuth = null;
     host.innerHTML = '<div class="study-loading">Loading Study AI…</div>';
     studyFrame = document.createElement('iframe');
@@ -260,13 +273,15 @@ const ICON_USER = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" s
 let profileOpen = false;
 let profileInfo = null;       // GET /me: name, email, is_admin
 let profileInfoFor = '';      // the session profileInfo belongs to
+let profileOneNote = null;    // {connected} when the server offers OneNote; null otherwise
+let studyAiConfig = null;     // GET /config (the server's features), once it has loaded
 
 function profileRender() {
   const host = document.getElementById('hdrProfile');
   if (!host) return;
   const session = aiSession();
   if (!session) { host.innerHTML = ''; profileOpen = false; profileInfo = null; profileInfoFor = ''; return; }
-  if (profileInfoFor !== session) { profileInfoFor = session; profileInfo = null; profileLoad(session); }
+  if (profileInfoFor !== session) { profileInfoFor = session; profileInfo = null; profileOneNote = null; profileLoad(session); }
   let name = '';
   try { name = localStorage.getItem(NS_NAME_KEY) || ''; } catch (e) {}
   const info = profileInfo || {};
@@ -278,6 +293,9 @@ function profileRender() {
         <button type="button" role="menuitem" onclick="profileOpenIn('feedback')">Send feedback</button>
         ${info.is_admin ? `<button type="button" role="menuitem" onclick="profileOpenIn('admin')">Usage &amp; feedback</button>` : ''}
         <button type="button" role="menuitem" onclick="profileOpenIn('privacy')">Privacy</button>
+        ${profileOneNote ? (profileOneNote.connected
+          ? `<button type="button" role="menuitem" onclick="profileOpenIn('onenote-sync')">Sync OneNote</button>`
+          : `<button type="button" role="menuitem" onclick="profileOneNoteConnect()">Connect OneNote</button>`) : ''}
         <button type="button" role="menuitem" class="hdr-menu-out" onclick="profileSignOut()">Sign out</button>
       </div>`;
   }
@@ -302,6 +320,43 @@ function profileToggle(e) {
   e.stopPropagation();
   profileOpen = !profileOpen;
   profileRender();
+  if (profileOpen) profileLoadOneNote(aiSession());
+}
+
+// Whether to offer "Connect OneNote" or "Sync OneNote" (only when the server has OneNote set up).
+function profileLoadOneNote(session) {
+  const config = studyAiConfig ? Promise.resolve(studyAiConfig)
+    : fetch(STUDY_AI_API + '/config').then(r => r.ok ? r.json() : null).then(j => { if (j) studyAiConfig = j; return j; });
+  config
+    .then(cfg => cfg && cfg.onenote_configured
+      ? fetch(STUDY_AI_API + '/integrations/onenote/status', { headers: { 'X-Session-Id': session } }).then(r => r.ok ? r.json() : null)
+      : null)
+    .then(status => {
+      if (aiSession() !== session) return;
+      profileOneNote = status ? { connected: !!status.connected } : null;
+      if (profileOpen) profileRender();
+    })
+    .catch(() => {});
+}
+
+// Microsoft's sign-in opens in a new tab; that has to happen here, during the click (a frame can't).
+// Syncing runs in Study AI (profileOpenIn('onenote-sync')), so the new pages show in its file list.
+function profileOneNoteConnect() {
+  profileClose();
+  const tab = window.open('', '_blank');
+  if (tab) tab.opener = null;
+  fetch(STUDY_AI_API + '/integrations/onenote/auth_url', { headers: { 'X-Session-Id': aiSession() } })
+    .catch(() => { throw new Error(AI_OFFLINE); })
+    .then(res => res.json().catch(() => ({})).then(data => {
+      if (!res.ok || !data.auth_url) throw new Error(aiErrorText(data, res.status));
+      if (tab) tab.location.href = data.auth_url;
+      else location.assign(data.auth_url);
+      toast('Finish connecting in the new tab, then choose Sync OneNote here.');
+    }))
+    .catch(err => {
+      if (tab) tab.close();
+      toast(esc("Couldn't start the OneNote connection. " + (err.message || '')));
+    });
 }
 
 function profileClose() {

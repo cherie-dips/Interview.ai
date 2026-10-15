@@ -1,0 +1,26 @@
+fastapi==0.116.2
+uvicorn==0.35.0
+httpx==0.28.1
+sarvamai==0.1.35
+pytesseract==0.3.13
+pillow==11.3.0
+python-dotenv==1.1.1
+transformers==4.56.1
+torch==2.8.0
+sentence-transformers==5.1.0
+numpy==2.3.3
+pymupdf==1.26.4
+python-multipart==0.0.20
+# Database: Postgres with pgvector
+SQLAlchemy==2.0.43
+psycopg2-binary==2.9.13
+asyncpg==0.32.0
+pgvector==0.5.1
+# Students' original files (Neon Object Storage, S3-compatible)
+boto3==1.43.113
+# The notes pipeline (LlamaIndex)
+llama-index-core==0.14.25
+llama-index-vector-stores-postgres==0.9.0
+llama-index-embeddings-huggingface==0.8.0
+llama-index-llms-sarvam==0.4.1
+llama-index-llms-openai-like==0.8.1

@@ -1,21 +1,38 @@
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
 # Claude Code local config
 .claude/
 
+# Secrets (server/.env holds the database, Neon and AI keys)
+.env
+.env.*
+
 # learncpp book - local reading only
 learncpp_book/
 
-# Python bytecode
+# Personal / local-only material - kept on disk, never deployed
+site/js/content-resume.js
+site/js/content-wayfair.js
+site/js/wayfair.js
+
+# Book PDFs (large, local reading only)
+Head First Design Patterns copy.pdf
+Thita patterns Sheet - Swati's Leetcode Pattern Sheet.pdf
+
+# Study AI build (made by `npm run build` in study-ai/, and by the deploy workflow)
+site/study-ai/
+node_modules/
+
+# Python
 __pycache__/
 *.pyc
+venv/
+.venv/
+.pytest_cache/
+*.log
 
-# Personal / local-only material - kept on disk, never deployed
-js/content-resume.js
-js/content-wayfair.js
-js/wayfair.js
-
-# Book PDF (large, local reading only)
-Head First Design Patterns copy.pdf
-
-Thita patterns Sheet - Swati's Leetcode Pattern Sheet.pdf
+# Answer-quality test runs (copy one to server/evals/ to keep it as a baseline)
+server/evals/results/

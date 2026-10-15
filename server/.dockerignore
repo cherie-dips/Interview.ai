@@ -1,0 +1,13 @@
+# Only backend/, requirements.txt and the Dockerfile are needed to build the server image.
+.env
+.env.*
+venv/
+.venv/
+tests/
+scripts/
+evals/
+**/__pycache__
+*.pyc
+.pytest_cache/
+*.log
+*.md
