@@ -66,8 +66,20 @@ jobs:
           pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0
           pip install -r requirements-dev.txt
 
+      # Hugging Face sometimes refuses downloads from GitHub's shared machines (429 Too Many Requests),
+      # so fetch the two search models here, with retries, and run the tests offline from the cache.
+      - name: Download the search models
+        run: |
+          for i in 1 2 3 4 5; do
+            python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('intfloat/multilingual-e5-small'); CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')" && exit 0
+            echo "Download failed; trying again in $((i * 30)) s"
+            sleep $((i * 30))
+          done
+          exit 1
+
       - name: Run tests
         env:
+          HF_HUB_OFFLINE: "1"
           SARVAM_API_KEY: ""
           TEST_DATABASE_URL: postgresql://test:test@localhost:5432/studyai_test
         run: python -m pytest -q tests
