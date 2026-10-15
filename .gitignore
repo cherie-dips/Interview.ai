@@ -36,3 +36,5 @@ venv/
 
 # Answer-quality test runs (copy one to server/evals/ to keep it as a baseline)
 server/evals/results/
+
+DEPLOYMENT.md

@@ -167,7 +167,7 @@ _ready = False
 def _url(driver: str) -> str:
     raw = settings.DATABASE_URL
     if not raw:
-        raise RuntimeError("DATABASE_URL is not set. See DEPLOYMENT.md (Postgres with pgvector).")
+        raise RuntimeError("DATABASE_URL is not set. See README.md (Neon: database, sign-in and file storage).")
     for prefix in ("postgresql+psycopg2://", "postgresql+asyncpg://", "postgresql://", "postgres://"):
         if raw.startswith(prefix):
             return f"postgresql+{driver}://" + raw[len(prefix):]

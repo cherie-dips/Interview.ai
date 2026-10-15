@@ -317,10 +317,10 @@ one server.
   covers one student's notes or one course, which Postgres scans exactly in milliseconds.
 - **Gemini 3.5 Flash-Lite** as the language model: of the free models tried (Gemini, and NVIDIA's
   gpt-oss, Nemotron and DeepSeek), it was the fastest and made flashcards and quizzes reliably, and it
-  answers well in Indian languages. Sarvam AI still reads PDFs and photos, and remains the default model
-  when no other is set. To compare another model, set
-  `LLM_PROVIDER=openai_like` (see [the server's settings](server/README.md#settings)) and run the
-  answer-quality test before and after.
+  answers well in Indian languages. Sarvam AI still reads PDFs and photos, and is the default model
+  when no other is set. To compare another model, change the `LLM_*` settings (see
+  [the server's settings](server/README.md#settings)) and run the
+  [answer-quality test](#answer-quality-test) before and after.
 
 ---
 
@@ -386,7 +386,7 @@ SDE-Prep/
 │   ├── backup.yml                Weekly encrypted database backup
 │   └── uptime.yml                Checks every 15 minutes that the server answers
 │
-└── DEPLOYMENT.md                 How to put it online
+└── README.md                     This file
 ```
 
 ---
@@ -395,8 +395,9 @@ SDE-Prep/
 
 You need Python 3.11, Node 20.19 or newer (Vite needs it) and Tesseract (`brew install tesseract` on
 macOS, `apt install tesseract-ocr` on Ubuntu). You also need a [Neon](https://neon.com) project for the
-database, sign-in and file storage (see [DEPLOYMENT.md](DEPLOYMENT.md#neon-database-sign-in-and-file-storage)),
-and a Sarvam API key from [sarvam.ai](https://www.sarvam.ai).
+database, sign-in and file storage (see [Neon](#2-neon-database-sign-in-and-file-storage)), a Sarvam API
+key from [sarvam.ai](https://www.sarvam.ai) (it reads PDFs and photos), and a Gemini API key from
+[Google AI Studio](https://aistudio.google.com/apikey) (it writes answers and study material).
 
 ### 1. Create `server/.env`
 
@@ -404,6 +405,14 @@ In the `server/` folder, create a file named `.env` (it is not in git):
 
 ```bash
 SARVAM_API_KEY=your-sarvam-key
+
+# The language model that writes answers, flashcards, quizzes and summaries: Gemini.
+LLM_PROVIDER=openai_like
+LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai
+LLM_MODEL=gemini-3.5-flash-lite
+LLM_API_KEY=your-gemini-key
+LLM_THINKING_OFF='{"reasoning_effort": "low"}'
+ANSWER_THINKING=false
 
 # Neon (neon.com): Postgres, sign-in and file storage. All three come from the Neon Console.
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
@@ -418,8 +427,8 @@ FRONTEND_URL=http://localhost:8001/
 ```
 
 - Without the file-storage settings (`AWS_*`, `S3_BUCKET`), only the text read from each file is kept.
-- Without a Sarvam key, uploads fall back to PyMuPDF and Tesseract, but questions and study tools
-  won't work.
+- Without a Sarvam key, uploads fall back to PyMuPDF and Tesseract (weak on handwriting).
+- Without the `LLM_*` settings, answers and study tools use Sarvam's `sarvam-105b` instead of Gemini.
 - To keep the database on your computer instead of Neon, run `docker compose up db` in `server/`
   (Postgres with pgvector on port 5433) and set
   `DATABASE_URL=postgresql://notescanner:notescanner@localhost:5433/notescanner`. Sign-in still goes to
@@ -526,13 +535,151 @@ Study AI tables are emptied!). Both run automatically on every push and pull req
 
 ## Putting it online
 
-- The site, with Study AI built in → **GitHub Pages**, published by `.github/workflows/deploy-site.yml`
-  on every push to `main` that changes `site/` or `study-ai/`. The repo's Settings → Pages → Source
-  must be **GitHub Actions**.
-- The Study AI server → **Hugging Face Spaces** (Docker), deployed by `.github/workflows/deploy-server.yml`
-  on every push to `main` that changes `server/`, once the `HF_TOKEN` secret is set.
+| Part | Where it runs | Deployed by |
+|---|---|---|
+| The site (`site/`), with Study AI built into `site/study-ai/` | GitHub Pages: https://cherie-dips.github.io/SDE-Prep/ | `deploy-site.yml`, on every push to `main` that changes `site/` or `study-ai/` |
+| The Study AI server (`server/`) | Hugging Face Space `diptidhawade/NoteScanner`: https://diptidhawade-notescanner.hf.space | `deploy-server.yml`, on every push to `main` that changes `server/` (not just its tests) |
 
-Step-by-step instructions, the server's settings, backups and checks are in [DEPLOYMENT.md](DEPLOYMENT.md).
+Both workflows can also be run by hand from the Actions tab.
+
+### 1. GitHub (once)
+
+- Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+- Settings → Secrets and variables → Actions. Secrets are never shown again, so take each value from
+  its source:
+
+| Kind | Name | Value | Used by |
+|---|---|---|---|
+| Secret | `HF_TOKEN` | A Hugging Face access token with write access to the Space | Server deploy (skipped with a notice without it) |
+| Secret | `DATABASE_URL` | The same value as on the Space | Weekly backup |
+| Secret | `BACKUP_PASSPHRASE` | A long random passphrase. **Keep a copy in a password manager**: backups can't be opened without it | Weekly backup |
+| Variable | `BACKEND_URL` | `https://diptidhawade-notescanner.hf.space` | Uptime check |
+
+The site needs no secrets: `site/study-ai/` isn't in git, the workflow builds it every time (`npm ci`,
+so commit `study-ai/package-lock.json` with any package change). The server's address is in
+`site/js/study-ai.js` (`STUDY_AI_API`) and `study-ai/src/config.js`; keep the two in step if it moves.
+
+### 2. Neon: database, sign-in and file storage
+
+One [Neon](https://neon.com) project (free plan) gives the server:
+
+- **Postgres** with **pgvector**: account details, folders, file text, decks, usage and the passages.
+  The server turns on pgvector and creates its tables on first start.
+- **Neon Auth**: accounts, passwords, and password-reset and email-confirmation emails.
+- **Object storage**: students' uploaded PDFs and photos only. The course PDFs stay in Supabase.
+
+In the Neon Console:
+
+1. Create the project. Its region can't be changed later: pick the one nearest the server (this
+   project's database is in Singapore and the Space in the US, which adds about 0.2 s per database call).
+2. **Connect** → the connection string is `DATABASE_URL`.
+3. **Auth** → the Auth URL is `NEON_AUTH_BASE_URL`. Under **Domains**, add `https://cherie-dips.github.io`
+   (without it, sign-in fails with "Sign-in isn't set up correctly on this server"). Email and password
+   sign-in must be on. **Require email verification** is on in this project: Neon emails new students a
+   code, and Study AI asks for it before their first sign-in.
+4. **Storage** → a private bucket (e.g. `usernotes`) and an access key with read and write access give
+   `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` and `S3_BUCKET`.
+   The free plan has 5 GB; `MAX_STORED_FILES_MB_PER_USER` and `MAX_STORED_FILES_MB_TOTAL` keep within it.
+
+### 3. The Hugging Face Space
+
+The Space builds `server/Dockerfile`, which downloads the two search models during the build and runs
+the server as one process. The deploy workflow sends `server/backend/`, `Dockerfile`, `.dockerignore`
+and `requirements.txt`, and writes the Space's `README.md` (Hugging Face reads the Space's settings,
+such as `sdk: docker` and `app_port: 7860`, from its top).
+
+In the Space's **Settings → Variables and secrets**, paste values **without quotes** (a value copied
+with the quotes from `.env` breaks it):
+
+| Kind | Name | Value |
+|---|---|---|
+| Secret | `SARVAM_API_KEY` | Sarvam key (reads PDFs and photos) |
+| Secret | `DATABASE_URL`, `NEON_AUTH_BASE_URL` | From Neon (above) |
+| Secret | `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET` | From Neon Storage (above) |
+| Variable | `LLM_PROVIDER` | `openai_like` |
+| Variable | `LLM_API_BASE` | `https://generativelanguage.googleapis.com/v1beta/openai` |
+| Variable | `LLM_MODEL` | `gemini-3.5-flash-lite` |
+| Variable | `LLM_THINKING_OFF` | `{"reasoning_effort": "low"}` |
+| Variable | `ANSWER_THINKING` | `false` |
+| Secret | `LLM_API_KEY` | Gemini key from Google AI Studio |
+
+Optional: OneNote (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_REDIRECT_URI` =
+`https://diptidhawade-notescanner.hf.space/integrations/onenote/callback`, also added to the Microsoft
+app); reminder emails (`SMTP_*`); admins (`ADMIN_EMAILS`); error alerts (`ALERT_WEBHOOK_URL`); an AI
+budget (`AI_PRICE_*`, `AI_MONTHLY_BUDGET`). `FRONTEND_URL` defaults to the live site; leave it unset.
+All settings are listed in [server/README.md](server/README.md#settings).
+
+**Why Gemini 3.5 Flash-Lite:** of the free models tried through the server's own answer, flashcard,
+quiz and summary code (Gemini, and NVIDIA's gpt-oss, Nemotron and DeepSeek), it was the fastest and
+made every item correctly. On Gemini's free tier Google may use what is sent (including passages of
+notes) to improve its products, and there are daily limits; enabling billing on the key removes both.
+The in-app privacy note says this. Without `LLM_*` settings the server uses Sarvam `sarvam-105b`.
+
+### 4. Check it works
+
+1. https://diptidhawade-notescanner.hf.space/health shows `{"status":"ok"}`, and `/library/status`
+   lists the course PDFs.
+2. On https://cherie-dips.github.io/SDE-Prep/ → **Study AI**: sign up (enter the emailed code), upload
+   a file, ask a question, make flashcards or a quiz.
+3. Notes → a course PDF → **Ask AI**: ask a question and click a source (the PDF scrolls there).
+4. Ask for a password reset: the email's link should open the reset box in the Study AI tab.
+
+If something fails, check the Space's **Logs** first. A CORS error in the browser console means the
+site's address is missing from `CORS_ORIGINS`.
+
+### The shared course library
+
+The server reads each course PDF once into shared tables. To index new PDFs, from `server/` with
+`DATABASE_URL` and `SARVAM_API_KEY` in `.env`:
+
+```bash
+venv/bin/python scripts/index_library.py --dry-run   # lists the PDFs and what reading them costs
+venv/bin/python scripts/index_library.py             # reads new or changed PDFs
+```
+
+Typed pages are read for free; handwritten and scanned pages with Sarvam Vision (about ₹0.5 per piece).
+Options: `--only <bucket folder>`, `--limit N`, `--force`, `--redo-tesseract`. An admin can also call
+`POST /admin/library/sync`, or set `LIBRARY_SYNC_HOURS` on the Space to check the bucket regularly.
+
+### Backups and restore
+
+Postgres holds the only copy of every student's account, notes and decks (Neon Auth's accounts are in
+the same database). `backup.yml` runs every Sunday at 03:00 India time (or by hand): `pg_dump` with
+Postgres 18, encrypted with `BACKUP_PASSPHRASE`, saved as a workflow artifact for 90 days. Uploaded
+originals in Neon storage aren't in it (the text read from them is).
+
+```bash
+# Open a backup (download the artifact, unzip it)
+gpg --decrypt study-ai-backup-<time>.dump.gpg > study-ai.dump
+
+# Restore into an EMPTY database (e.g. a new Neon branch), with DATABASE_URL pointing at it
+docker run --rm -i -e DATABASE_URL postgres:18 \
+  sh -c 'pg_restore --no-owner --no-privileges --dbname="$DATABASE_URL"' < study-ai.dump
+```
+
+Test a restore at least once: restore into a new Neon branch, run the server locally against it, sign
+in and check your notes and decks, then delete the branch.
+
+### Uptime check
+
+`uptime.yml` calls `/health` every 15 minutes (once `BACKEND_URL` is set) and fails if the server
+doesn't answer within 30 seconds; GitHub emails failed runs. A sleeping free Space can take longer to
+wake, so expect an occasional failure. GitHub pauses scheduled workflows after 60 days without
+activity; re-enable it in the Actions tab.
+
+### Answer-quality test
+
+`server/scripts/answer_quality.py` asks a running server a fixed list of questions and scores the
+answers (0–100). Run it before and after changing the prompts, the model or the search settings:
+
+```bash
+cd server
+export STUDYAI_PASSWORD='test account password'
+venv/bin/python scripts/answer_quality.py --api https://diptidhawade-notescanner.hf.space \
+  --email answer-test@example.com --questions evals/sample_questions.json
+```
+
+Use a separate test account with a confirmed email. See `server/evals/README.md`.
 
 > Run the server as **one process** (one Uvicorn worker). Upload jobs, chat attachments and request
 > limits are kept in the server's memory.

@@ -3,7 +3,7 @@ name: Weekly backup
 # Backs up the Postgres database every week with pg_dump. The backup holds password hashes and
 # students' notes, so it's encrypted with BACKUP_PASSPHRASE before being stored as a workflow artifact
 # (artifacts of a public repository can be downloaded by others). Decrypt and restore as described
-# in DEPLOYMENT.md ("Backups and restore").
+# in README.md ("Backups and restore").
 
 on:
   schedule:

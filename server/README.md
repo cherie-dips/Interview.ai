@@ -8,7 +8,7 @@ plans) and the shared course library that Ask AI searches.
 - Python 3.11 + FastAPI (a Python web framework), run with Uvicorn.
 - Live at https://diptidhawade-notescanner.hf.space, on the Hugging Face Space `diptidhawade/NoteScanner`
   (it kept the name of the project Study AI started as). GitHub Actions deploys it from this folder:
-  see [DEPLOYMENT.md](../DEPLOYMENT.md).
+  see [Putting it online](../README.md#putting-it-online).
 - How it saves notes, answers questions and makes study material is explained in the main README:
   [How Study AI works](../README.md#how-study-ai-works).
 
@@ -128,10 +128,10 @@ The server reads its settings from the environment: `.env` on your computer, the
 | Uploaded files | `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET`; `MAX_STORED_FILES_MB_PER_USER` (200), `MAX_STORED_FILES_MB_TOTAL` (4500) |
 | Reminder emails | `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_STARTTLS` (true). Turned on only when `SMTP_HOST` and `SMTP_FROM` are set. Only confirmed emails get reminders. |
 | OneNote | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI` (`http://localhost:8000/integrations/onenote/callback`) |
-| Course library | `LIBRARY_ENABLED` (true), `LIBRARY_SUPABASE_URL` / `LIBRARY_SUPABASE_KEY` / `LIBRARY_BUCKET` (Interview.ai's public bucket), `LIBRARY_PREFIXES` (`plaksha-university`), `LIBRARY_OCR` (`auto`), `LIBRARY_SYNC_HOURS` (0 = by hand). See [DEPLOYMENT.md](../DEPLOYMENT.md#shared-course-library-ask-ai). |
+| Course library | `LIBRARY_ENABLED` (true), `LIBRARY_SUPABASE_URL` / `LIBRARY_SUPABASE_KEY` / `LIBRARY_BUCKET` (Interview.ai's public bucket), `LIBRARY_PREFIXES` (`plaksha-university`), `LIBRARY_OCR` (`auto`), `LIBRARY_SYNC_HOURS` (0 = by hand). See [The shared course library](../README.md#the-shared-course-library). |
 | Pilot | `ADMIN_EMAILS`, `ALERT_WEBHOOK_URL`, `AI_PRICE_PER_PAGE`, `AI_PRICE_PER_1K_INPUT_TOKENS`, `AI_PRICE_PER_1K_OUTPUT_TOKENS`, `AI_PRICE_CURRENCY` (INR), `AI_MONTHLY_BUDGET` (0 = off), `APP_TIMEZONE` (Asia/Kolkata), `REMINDER_HOUR` (8), `REMINDERS_ENABLED` (true), `STARTER_NOTES` (true) |
 
-What each one does, and which to set on the Space, is in [DEPLOYMENT.md](../DEPLOYMENT.md).
+Which to set on the Space is in [Putting it online](../README.md#3-the-hugging-face-space).
 
 Search settings are in `backend/settings.py`: `MIN_SCORE_*` (how high the re-check score, 0 to 1, must
 be before a place is used), `CANDIDATES_PER_SEARCH`, `SOURCE_SCORE_WINDOW`, `CHUNK_CHARS` and
