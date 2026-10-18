@@ -58,8 +58,8 @@ jobs:
             printf '%s\n' '---' 'title: Study AI server' 'emoji: "📚"' 'colorFrom: green' 'colorTo: gray' \
               'sdk: docker' 'app_port: 7860' 'pinned: false' '---' '' \
               '# Study AI server' '' \
-              'The server behind Interview.ai'"'"'s Study AI tab and Ask AI panel: https://cherie-dips.github.io/SDE-Prep/' '' \
-              'Code: https://github.com/cherie-dips/SDE-Prep/tree/main/server (deployed from there by GitHub Actions).'
+              'The server behind Interview.ai'"'"'s Study AI tab and Ask AI panel: https://cherie-dips.github.io/Interview.ai/' '' \
+              'Code: https://github.com/cherie-dips/Interview.ai/tree/main/server (deployed from there by GitHub Actions).'
           } > space/README.md
 
           cd space

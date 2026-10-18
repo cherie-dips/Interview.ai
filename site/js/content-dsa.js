@@ -2289,7 +2289,7 @@ int maxResult(vector<int>& a, int k) {
 <li>"find all starting indices where ..."</li>
 <li>A fixed-length window plus a multiset equality test</li>
 </ul>
-<div class="learn-tip"><b>The move:</b> build <code>need[26]</code> from the pattern. Slide a window of length <code>|p|</code> over <code>s</code>, updating <code>have[26]</code> by +1 on entry and -1 on exit, and maintain <code>matched</code> = number of letters where <code>have == need</code>. A window is an anagram when <code>matched == 26</code>.</p>
+<div class="learn-tip"><b>The move:</b> build <code>need[26]</code> from the pattern. Slide a window of length <code>|p|</code> over <code>s</code>, updating <code>have[26]</code> by +1 on entry and -1 on exit, and maintain <code>matched</code> = number of letters where <code>have == need</code>. A window is an anagram when <code>matched == 26</code>.</div>
 </div>
 
 <div class="learn-section"><div class="learn-h">Picture: counts, not orderings</div>

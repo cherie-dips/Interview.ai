@@ -10,7 +10,7 @@ function vendorChunk(id) {
 }
 
 // The build goes into the website, as site/study-ai/ (the Study AI tab shows that page in a frame).
-// Relative paths, so it works wherever the site is served: GitHub Pages' /SDE-Prep/ or your computer.
+// Relative paths, so it works wherever the site is served: GitHub Pages' /Interview.ai/ or your computer.
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],

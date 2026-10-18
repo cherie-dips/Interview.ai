@@ -1,6 +1,6 @@
 # Interview.ai
 
-**Live: https://cherie-dips.github.io/SDE-Prep/**
+**Live: https://cherie-dips.github.io/Interview.ai/**
 
 Complete SDE roadmap with a schedule you can pace yourself — pick 1, 2, 4 or 6 months
 and the calendar fills in from your start date.
@@ -327,7 +327,7 @@ one server.
 ## Project structure
 
 ```
-SDE-Prep/
+Interview.ai/
 ├── site/                         The website, published to GitHub Pages
 │   ├── index.html                Interview.ai's only page. Loads all the CSS and JS below.
 │   ├── css/
@@ -537,7 +537,7 @@ Study AI tables are emptied!). Both run automatically on every push and pull req
 
 | Part | Where it runs | Deployed by |
 |---|---|---|
-| The site (`site/`), with Study AI built into `site/study-ai/` | GitHub Pages: https://cherie-dips.github.io/SDE-Prep/ | `deploy-site.yml`, on every push to `main` that changes `site/` or `study-ai/` |
+| The site (`site/`), with Study AI built into `site/study-ai/` | GitHub Pages: https://cherie-dips.github.io/Interview.ai/ | `deploy-site.yml`, on every push to `main` that changes `site/` or `study-ai/` |
 | The Study AI server (`server/`) | Hugging Face Space `diptidhawade/NoteScanner`: https://diptidhawade-notescanner.hf.space | `deploy-server.yml`, on every push to `main` that changes `server/` (not just its tests) |
 
 Both workflows can also be run by hand from the Actions tab.
@@ -619,7 +619,7 @@ The in-app privacy note says this. Without `LLM_*` settings the server uses Sarv
 
 1. https://diptidhawade-notescanner.hf.space/health shows `{"status":"ok"}`, and `/library/status`
    lists the course PDFs.
-2. On https://cherie-dips.github.io/SDE-Prep/ → **Study AI**: sign up (enter the emailed code), upload
+2. On https://cherie-dips.github.io/Interview.ai/ → **Study AI**: sign up (enter the emailed code), upload
    a file, ask a question, make flashcards or a quiz.
 3. Notes → a course PDF → **Ask AI**: ask a question and click a source (the PDF scrolls there).
 4. Ask for a password reset: the email's link should open the reset box in the Study AI tab.

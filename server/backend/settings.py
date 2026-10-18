@@ -129,7 +129,7 @@ MIN_PASSWORD_LEN = 8
 MAX_PASSWORD_LEN = 128  # Neon Auth's limit
 
 # The website (Interview.ai). Password-reset and reminder emails link here; Neon Auth trusts its origin.
-FRONTEND_URL = _env_str("FRONTEND_URL", "https://cherie-dips.github.io/SDE-Prep/")
+FRONTEND_URL = _env_str("FRONTEND_URL", "https://cherie-dips.github.io/Interview.ai/")
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:8001",  # the site on your computer (python3 -m http.server 8001 -d site)

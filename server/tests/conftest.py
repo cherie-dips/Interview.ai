@@ -21,7 +21,7 @@ os.environ["LLM_THINKING_OFF"] = ""  # the default (empty, so .env can't fill it
 # Sign-in goes to the fake Neon Auth; originals are only stored by tests that ask for file_storage.
 os.environ["NEON_AUTH_BASE_URL"] = "https://auth.test/neondb/auth"
 # The live site, whatever .env says (the sign-in Origin and email links come from it).
-os.environ["FRONTEND_URL"] = "https://cherie-dips.github.io/SDE-Prep/"
+os.environ["FRONTEND_URL"] = "https://cherie-dips.github.io/Interview.ai/"
 for _name in ("AWS_ENDPOINT_URL_S3", "S3_BUCKET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
     os.environ[_name] = ""
 os.environ.setdefault("MAX_UPLOAD_MB", "1")
